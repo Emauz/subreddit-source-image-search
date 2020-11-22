@@ -70,7 +70,7 @@ def get_count() -> int:
     count = None
 
     while type(count) is not int:
-        count = input("How much posts to search in each subreddit: ")
+        count = input("How many posts to search in each subreddit: ")
         try:
             count = int(count)
         except ValueError:
