@@ -65,7 +65,7 @@ def download(url: str, output_path: str) -> bool:
 def main():
     count, subreddits = tools.get_arguments()
     output_path = tools.make_folder(tools.OUTPUT_FOLDER)
-    reddit = praw.Reddit(user_agent="subreddit-image-scraper by /u/dukemiller")
+    reddit = praw.Reddit("image-search-bot", user_agent="subreddit-source-image-search (by u/Emauz)")
     data = DataWriter(output_path)
 
     for subreddit in subreddits:
@@ -76,7 +76,7 @@ def main():
 
         try:
             # get every submission
-            for submission in reddit.get_subreddit(subreddit).get_top_from_all(limit=count):
+            for submission in reddit.subreddit(subreddit).top("all", limit=count):
                 submission_url = submission.url
 
                 # if not exist in json

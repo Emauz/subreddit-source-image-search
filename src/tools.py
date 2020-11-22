@@ -3,7 +3,7 @@ import sys
 import os
 
 REQUESTS_HEADER = "Mozilla/5.0 (Windows NT 10.0; WOW64; rv:46.0) Gecko/20100101 Firefox/46.0"
-OUTPUT_FOLDER = r'E:\Output\api\reddit\subreddit-image-scraper'
+OUTPUT_FOLDER = r'output'
 
 
 def is_file(url: str) -> bool:
