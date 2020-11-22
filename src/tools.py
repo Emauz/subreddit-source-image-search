@@ -59,8 +59,8 @@ def get_subreddits(path_or_string: str = None) -> List[str]:
     if path_or_string is None:
         path_or_string = input("Put a full file path or comma + space delimited list of subreddits: ")
     if os.path.exists(path_or_string):
-        with open(path_or_string) as text:
-            subreddits = text.read().split(", ")
+        with open(path_or_string) as file:
+            subreddits = [line.rstrip() for line in file]
     else:
         subreddits = path_or_string.split(", ")
     return subreddits
@@ -79,15 +79,15 @@ def get_count() -> int:
     return count
 
 
-def get_arguments() -> Tuple[int, List[str]]:
-    count, subreddits = None, None
+def get_arguments() -> Tuple[int, str, List[str]]:
+    count, subimage_path, subreddits = None, None, None
     args = sys.argv
 
     # Given command line arguments
     if len(args) > 1:
 
         # Not enough arguments
-        if len(args) < 3:
+        if len(args) < 4:
             print_arguments_and_exit()
 
         # Invalid first argument
@@ -96,12 +96,16 @@ def get_arguments() -> Tuple[int, List[str]]:
         except ValueError:
             print_arguments_and_exit("Invalid argument in position 1.")
 
-        # Format second argument
-        subreddits = get_subreddits(" ".join(args[2:]))
+        # Get second argument
+        subimage_path = args[2]
+
+        # Format third argument (subreddit list)
+        subreddits = get_subreddits(" ".join(args[3:]))
 
     # Given nothing
     else:
         count = get_count()
+        subimage_path = input("Give path of sub-image to search with: ")
         subreddits = get_subreddits()
 
-    return count, subreddits
+    return count, subimage_path, subreddits

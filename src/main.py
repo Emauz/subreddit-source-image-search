@@ -1,11 +1,13 @@
 from data import DataWriter
 from typing import Iterable
-import os.path as path
+import os
 import urllib.request
 import urllib.error
 import handlers
 import tools
 import praw
+import prawcore.exceptions
+import cv2
 
 
 def get_download_data_for(url: str) -> Iterable[str]:
@@ -36,9 +38,16 @@ def get_download_data_for(url: str) -> Iterable[str]:
 def download(url: str, output_path: str) -> bool:
     """ Download the url to the output path, returning if it was successful. """
 
-    download_path = path.join(output_path, tools.get_url_filename(url))
+    download_path = os.path.join(output_path, tools.get_url_filename(url))
 
-    if not path.exists(download_path):
+    # Abort download if image is animated
+    ANIMATED_IMAGE_TYPES = ['gif', 'webm', 'mp4']
+    file_type = url.split('.')[-1]
+    if file_type in ANIMATED_IMAGE_TYPES:
+        print("Aborting download, animated image. {0}".format(url))
+        return False
+
+    if not os.path.exists(download_path):
         try:
             urllib.request.urlretrieve(url, download_path)
             return True
@@ -63,44 +72,43 @@ def download(url: str, output_path: str) -> bool:
 
 
 def main():
-    count, subreddits = tools.get_arguments()
+    count, subimage_path, subreddits = tools.get_arguments()
     output_path = tools.make_folder(tools.OUTPUT_FOLDER)
     reddit = praw.Reddit("image-search-bot", user_agent="subreddit-source-image-search (by u/Emauz)")
-    data = DataWriter(output_path)
+    tools.make_folder(output_path)
+    subimage = cv2.imread(subimage_path)
 
     for subreddit in subreddits:
         print("-- {0}".format(subreddit))
-        subreddit_path = tools.make_folder(path.join(output_path, subreddit))
-        subreddit_data = data[subreddit]
-        download_count = 0
 
         try:
             # get every submission
             for submission in reddit.subreddit(subreddit).top("all", limit=count):
                 submission_url = submission.url
+                response = get_download_data_for(submission_url)
 
-                # if not exist in json
-                if subreddit_data.does_not_contain(submission_url):
-                    response = get_download_data_for(submission_url)
+                # download each url
+                for url in response:
+                    downloaded = download(url, output_path)
 
-                    # download each url
-                    for url in response:
-                        downloaded = download(url, subreddit_path)
+                    if downloaded:
+                        print("Downloaded {0}.".format(url))
+                        image_path = os.path.join(output_path, tools.get_url_filename(url))
+                        # Open image and attempt to check if it's parent of target sub-image
+                        img = cv2.imread(image_path)
+                        try:
+                            result = cv2.matchTemplate(subimage, img, cv2.TM_CCOEFF_NORMED)
+                            _, max_val, _, _ = cv2.minMaxLoc(result)
+                            if max_val > 0.9:
+                                print("Found an image! Saved as: {0}".format(image_path))
+                            else:
+                                os.remove(image_path)
+                        except cv2.error:
+                            print("cv2 error, unable to compare images.")
+                            os.remove(image_path)
 
-                        if downloaded:
-                            print("Downloaded {0}.".format(url))
-                            subreddit_data.add(url)
-                            download_count += 1
-
-                            # Add the base URL (in the case that download url/s are different)
-                            if submission_url not in subreddit_data:
-                                subreddit_data.add(submission_url)
-
-            if download_count > 0:
-                data.save()
-
-        except praw.errors.Forbidden:
-            print("{} might be a quarantined subreddit and/or removed. Skipping ...".format(subreddit))
+        except prawcore.exceptions.NotFound:
+            print("{} returned 404, not found. Skipping ...".format(subreddit))
 
 
 if __name__ == '__main__':
